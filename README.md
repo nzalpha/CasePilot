@@ -77,14 +77,28 @@ How to test:
 - Make sure `NawazIdea_Processed__c` is unchecked.
 - Watch the backend terminal for log lines showing the agent decision.
 
-## Phase 4 — Salesforce Case Updates 🔜 Coming Next
+## Phase 4 — Salesforce Case Updates ✅ Complete
 
-Phase 4 will build the full Salesforce update path. It will post answers back to cases, send emails to customers, update case status, and close cases when resolved.
+Phase 4 adds a case tracking store and case management API. Engineers can query what the agent did and manage cases programmatically.
 
-What will be built:
+What was built:
 
-- `backend/integrations/salesforce_updater.py`
+- `backend/models/case_store.py`
 - `backend/routers/cases.py`
+
+APIs and endpoints:
+
+- `GET /cases`
+- `GET /cases/summary`
+- `GET /cases/{case_id}`
+- `POST /cases/{case_id}/resolve`
+- `POST /cases/{case_id}/escalate`
+
+How to test:
+
+- Start the backend and open `http://127.0.0.1:8000/docs`.
+- Create a Salesforce case and wait for the agent to process it.
+- Call `GET /cases` to see the agent decision logged.
 
 ## Phase 5 — Case Lifecycle Management 🔜 Planned
 
@@ -149,7 +163,9 @@ WebApp/                                  # Main project folder.
 │   │   ├── __init__.py                  # Marks integrations as a Python package.
 │   │   └── salesforce_client.py         # Talks to Salesforce cases and comments.
 │   ├── models/                          # Shared data shapes.
+│   │   ├── README.md                    # Beginner guide for models and the case store.
 │   │   ├── __init__.py                  # Marks models as a Python package.
+│   │   ├── case_store.py                # Tracks what the agent did to each case.
 │   │   └── schemas.py                   # Defines API request and response shapes.
 │   ├── retrieval/                       # Phase 2 answer retrieval code.
 │   │   ├── README.md                    # Beginner guide for retrieval.
@@ -160,12 +176,15 @@ WebApp/                                  # Main project folder.
 │   │   ├── result_combiner.py           # Combines and ranks search results.
 │   │   └── vector_searcher.py           # Finds chunks by meaning.
 │   ├── routers/                         # API route files.
+│   │   ├── README.md                    # Beginner guide for API routes.
 │   │   ├── __init__.py                  # Marks routers as a Python package.
+│   │   ├── cases.py                     # Case tracking and management routes.
 │   │   ├── ingestion.py                 # Upload, URL ingest, list, delete, and health routes.
 │   │   └── retrieval.py                 # Question-answering route.
 │   └── tests/                           # Backend tests.
 │       ├── test_ingestion.py            # Tests Phase 1 ingestion behavior.
 │       ├── test_phase3.py               # Tests Salesforce agent behavior.
+│       ├── test_phase4.py               # Tests case tracking and management behavior.
 │       └── test_retrieval.py            # Tests Phase 2 retrieval behavior.
 └── frontend/                            # React frontend code.
     ├── README.md                        # Beginner guide for the frontend.

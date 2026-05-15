@@ -25,6 +25,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.ingestion.graph_writer import GraphWriter
+from backend.routers.cases import router as cases_router
 from backend.routers.ingestion import router as ingestion_router
 from backend.routers.retrieval import router as retrieval_router
 
@@ -64,3 +65,4 @@ app = FastAPI(
 )
 app.include_router(ingestion_router)
 app.include_router(retrieval_router)
+app.include_router(cases_router)

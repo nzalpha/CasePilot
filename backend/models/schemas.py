@@ -65,3 +65,30 @@ class RetrievalData(BaseModel):
 class RetrievalResponse(BaseModel):
     status: str
     data: RetrievalData
+
+
+class CaseResponse(BaseModel):
+    case_id: str
+    case_number: str
+    subject: str
+    question: str
+    action: str
+    confidence: float
+    answer: Optional[str]
+    sources: list[str]
+    processed_at: str
+    status: str
+
+
+class CaseSummaryResponse(BaseModel):
+    total: int
+    auto_answered: int
+    flagged_for_human: int
+    resolved: int
+    escalated: int
+
+
+class CaseActionResponse(BaseModel):
+    case_id: str
+    status: str
+    message: str

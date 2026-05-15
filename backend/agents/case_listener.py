@@ -52,7 +52,9 @@ async def process_case(
         if confidence >= settings.confidence_threshold:
             await handle_high_confidence(
                 sf_client,
+                case,
                 case["case_id"],
+                question,
                 answer,
                 sources,
                 confidence,
@@ -60,6 +62,7 @@ async def process_case(
         else:
             await handle_low_confidence(
                 sf_client,
+                case,
                 case["case_id"],
                 confidence,
                 question,
