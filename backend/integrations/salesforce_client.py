@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+import httpx
+
 from backend.config import settings
 
 try:
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Salesforce must have this custom field before polling works:
 # Setup -> Object Manager -> Case -> Fields & Relationships ->
-# New -> Checkbox -> Field Name: NawazIdea_Processed__c ->
+# New -> Checkbox -> Field Name: CasePilot1_Processed__c ->
 # Default value: False -> Save
 
 
@@ -43,9 +45,6 @@ class SalesforceClient:
     def __init__(self) -> None:
         self.sf = None
         required_settings = [
-            settings.salesforce_username,
-            settings.salesforce_password,
-            settings.salesforce_security_token,
             settings.salesforce_client_id,
             settings.salesforce_client_secret,
             settings.salesforce_instance_url,
@@ -58,17 +57,29 @@ class SalesforceClient:
             return
 
         try:
+            token_response = self._get_access_token()
             self.sf = Salesforce(
-                username=settings.salesforce_username,
-                password=settings.salesforce_password,
-                security_token=settings.salesforce_security_token,
-                consumer_key=settings.salesforce_client_id,
-                consumer_secret=settings.salesforce_client_secret,
-                instance_url=settings.salesforce_instance_url,
+                instance_url=token_response["instance_url"],
+                session_id=token_response["access_token"],
             )
         except Exception as exc:
             logger.exception("Failed to connect to Salesforce: %s", exc)
             self.sf = None
+
+    def _get_access_token(self) -> dict:
+        response = httpx.post(
+            f"{settings.salesforce_instance_url.rstrip('/')}/services/oauth2/token",
+            data={
+                "grant_type": "client_credentials",
+                "client_id": settings.salesforce_client_id,
+                "client_secret": settings.salesforce_client_secret,
+            },
+            timeout=30.0,
+        )
+        if not response.is_success:
+            logger.error("Salesforce token error: %s", response.text)
+        response.raise_for_status()
+        return response.json()
 
     def get_new_cases(self) -> list[dict]:
         if self.sf is None:
@@ -78,7 +89,7 @@ class SalesforceClient:
         SELECT Id, Subject, Description, Status, CaseNumber
         FROM Case
         WHERE Status = 'New'
-        AND NawazIdea_Processed__c = false
+        AND CasePilot1_Processed__c = false
         ORDER BY CreatedDate ASC
         LIMIT 10
         """
@@ -121,7 +132,7 @@ class SalesforceClient:
                 case_id,
                 {
                     "Status": "In Progress",
-                    "NawazIdea_Processed__c": True,
+                    "CasePilot1_Processed__c": True,
                 },
             )
             return True
@@ -150,7 +161,7 @@ class SalesforceClient:
                 case_id,
                 {
                     "Status": "In Progress",
-                    "NawazIdea_Processed__c": True,
+                    "CasePilot1_Processed__c": True,
                     "Priority": "High",
                 },
             )
