@@ -15,13 +15,15 @@ FALLBACK_ANSWER = (
 )
 
 PROMPT_TEMPLATE = """You are a technical support assistant. Answer the question
-using ONLY the context provided below.
+using the context provided below.
 
 Rules:
-- Base your answer strictly on the provided context
-- If the context does not contain enough information to
-  answer, say: "I don't have enough information in the
-  knowledge base to answer this question."
+- Use the provided context as your primary source
+- If the context contains relevant information, use it to write
+  a clear and helpful answer even if it is not a perfect match
+- Only say "I don't have enough information in the knowledge base
+  to answer this question." if the context contains absolutely
+  nothing related to the question
 - Be concise and structured
 - Include specific steps or commands where relevant
 - Do not make up information not present in the context

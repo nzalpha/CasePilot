@@ -125,7 +125,7 @@ class SalesforceClient:
                 {
                     "ParentId": case_id,
                     "CommentBody": build_answer_comment(answer, sources, confidence),
-                    "IsPublished": True,
+                    "IsPublished": False,
                 }
             )
             self.sf.Case.update(
