@@ -17,7 +17,7 @@ class Settings:
     neo4j_uri: str = os.getenv("NEO4J_URI", "")
     neo4j_username: str = os.getenv("NEO4J_USERNAME", "neo4j")
     neo4j_password: str = os.getenv("NEO4J_PASSWORD", "")
-    confidence_threshold: float = float(os.getenv("CONFIDENCE_THRESHOLD", "0.8"))
+    confidence_threshold: float = float(os.getenv("CONFIDENCE_THRESHOLD", "0.6"))
     environment: str = os.getenv("ENVIRONMENT", "development")
     embedding_dimensions: int = 1536
     salesforce_client_id: str = os.getenv("SALESFORCE_CLIENT_ID", "")
