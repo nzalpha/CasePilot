@@ -62,3 +62,42 @@ It later posts an answer if confidence is high.
 It flags the case for a person if confidence is low.
 It marks each handled case as processed.
 This keeps Salesforce and NawazIdea in sync.
+
+## Phase 5 — Webex Notifications
+
+`WebexClient` sends a Webex message when a Salesforce case needs human review. Webex is the chat tool where engineers can receive alerts. The message gives the engineer the case details and a direct Salesforce link.
+
+The two `.env` variables needed are:
+
+- `WEBEX_BOT_TOKEN` is the secret token for your Webex bot.
+- `WEBEX_ROOM_ID` is the ID of the Webex space where messages should be sent.
+
+To create a Webex Bot, go to:
+
+```text
+developer.webex.com -> My Webex Apps -> Create a Bot
+```
+
+To get the Room ID, add the bot to a Webex space. Then call this Webex API with the bot token:
+
+```text
+GET https://webexapis.com/v1/rooms
+```
+
+Find the room you want in the response and copy its `id`.
+
+The notification message looks like this:
+
+```text
+🚨 NawazIdea — Human Review Required
+
+Case Number: 00012345
+Subject: Router reset failed
+Confidence Score: 50%
+Question: How do I reset my router?
+Salesforce Case: clickable Salesforce case link
+
+Please review, edit the AI draft in Salesforce if present, and respond.
+```
+
+If Webex is not configured, the system keeps running. It logs a warning and does not send notifications.

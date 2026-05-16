@@ -27,6 +27,8 @@ class Settings:
     salesforce_password: str = os.getenv("SALESFORCE_PASSWORD", "")
     salesforce_security_token: str = os.getenv("SALESFORCE_SECURITY_TOKEN", "")
     salesforce_poll_interval: int = int(os.getenv("SALESFORCE_POLL_INTERVAL", "10"))
+    webex_bot_token: str = os.getenv("WEBEX_BOT_TOKEN", "")
+    webex_room_id: str = os.getenv("WEBEX_ROOM_ID", "")
 
 
 settings = Settings()

@@ -100,15 +100,20 @@ How to test:
 - Create a Salesforce case and wait for the agent to process it.
 - Call `GET /cases` to see the agent decision logged.
 
-## Phase 5 — Case Lifecycle Management 🔜 Planned
+## Phase 5 — Webex Notifications
 
-Phase 5 will classify customer replies as resolved, still open, escalate, or no response. It will send follow-up messages on Day 2 and Day 4, close cases with no response on Day 5, and send Webex messages to engineers when a customer wants to escalate.
+Phase 5 sends a Webex message when a case is flagged for human review. The engineer gets the case number, subject, confidence score, question, and a direct Salesforce case link.
 
-What will be built:
+What was built:
 
-- `backend/agents/reply_classifier.py`
-- `backend/workers/followup_scheduler.py`
 - `backend/integrations/webex_client.py`
+
+Environment variables:
+
+```env
+WEBEX_BOT_TOKEN=your_bot_token_here
+WEBEX_ROOM_ID=your_webex_room_id_here
+```
 
 ## Phase 6 — Self-Learning Loop 🔜 Planned
 
@@ -161,7 +166,8 @@ WebApp/                                  # Main project folder.
 │   ├── integrations/                    # Code that talks to outside systems.
 │   │   ├── README.md                    # Beginner guide for integrations.
 │   │   ├── __init__.py                  # Marks integrations as a Python package.
-│   │   └── salesforce_client.py         # Talks to Salesforce cases and comments.
+│   │   ├── salesforce_client.py         # Talks to Salesforce cases and comments.
+│   │   └── webex_client.py              # Sends Webex alerts for human review.
 │   ├── models/                          # Shared data shapes.
 │   │   ├── README.md                    # Beginner guide for models and the case store.
 │   │   ├── __init__.py                  # Marks models as a Python package.
@@ -185,6 +191,7 @@ WebApp/                                  # Main project folder.
 │       ├── test_ingestion.py            # Tests Phase 1 ingestion behavior.
 │       ├── test_phase3.py               # Tests Salesforce agent behavior.
 │       ├── test_phase4.py               # Tests case tracking and management behavior.
+│       ├── test_phase5.py               # Tests Webex notification behavior.
 │       └── test_retrieval.py            # Tests Phase 2 retrieval behavior.
 └── frontend/                            # React frontend code.
     ├── README.md                        # Beginner guide for the frontend.
@@ -222,6 +229,8 @@ WebApp/                                  # Main project folder.
 | `SALESFORCE_PASSWORD` | Salesforce password, kept for settings compatibility. | Phase 3 |
 | `SALESFORCE_SECURITY_TOKEN` | Salesforce security token, kept for settings compatibility. | Phase 3 |
 | `SALESFORCE_POLL_INTERVAL` | Seconds between Salesforce checks. | Phase 3 |
+| `WEBEX_BOT_TOKEN` | Secret token for the Webex bot. | Phase 5 |
+| `WEBEX_ROOM_ID` | Webex space ID for engineer alerts. | Phase 5 |
 
 ## How To Run The Project
 
