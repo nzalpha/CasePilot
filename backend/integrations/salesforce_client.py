@@ -173,3 +173,132 @@ class SalesforceClient:
                 exc,
             )
             return False
+
+    def get_inprogress_cases(self) -> list[dict]:
+        if self.sf is None:
+            return []
+
+        query = """
+        SELECT Id, CaseNumber, Subject, Description, Status,
+               CasePilot1_LastReplyChecked_c__c
+        FROM Case
+        WHERE Status = 'In Progress'
+        AND CasePilot1_Processed__c = true
+        ORDER BY LastModifiedDate ASC
+        LIMIT 20
+        """
+        try:
+            result = self.sf.query(query)
+            records = result.get("records", [])
+            return [
+                {
+                    "case_id": record.get("Id", ""),
+                    "case_number": record.get("CaseNumber", ""),
+                    "subject": record.get("Subject", "") or "",
+                    "description": record.get("Description", "") or "",
+                    "last_reply_checked": record.get(
+                        "CasePilot1_LastReplyChecked_c__c"
+                    ),
+                }
+                for record in records
+            ]
+        except Exception as exc:
+            logger.exception("Failed to fetch in-progress Salesforce cases: %s", exc)
+            return []
+
+    def get_new_customer_replies(
+        self,
+        case_id: str,
+        since_iso: str | None,
+    ) -> list[str]:
+        if self.sf is None:
+            return []
+
+        escaped_case_id = case_id.replace("'", "\\'")
+        query = f"""
+        SELECT CommentBody, CreatedDate
+        FROM CaseComment
+        WHERE ParentId = '{escaped_case_id}'
+        ORDER BY CreatedDate ASC
+        """
+        try:
+            result = self.sf.query(query)
+            records = result.get("records", [])
+            replies: list[str] = []
+            for record in records:
+                comment_body = record.get("CommentBody", "") or ""
+                # Skip comments posted by the AI system
+                if comment_body.startswith("[NawazIdea"):
+                    continue
+                created_at = record.get("CreatedDate")
+                if since_iso and created_at and created_at <= since_iso:
+                    continue
+                if comment_body:
+                    replies.append(comment_body)
+            return replies
+        except Exception as exc:
+            logger.exception("Failed to fetch customer replies for case %s: %s", case_id, exc)
+            return []
+
+    def close_case(self, case_id: str) -> bool:
+        if self.sf is None:
+            return False
+
+        try:
+            self.sf.Case.update(case_id, {"Status": "Closed"})
+            self.sf.CaseComment.create(
+                {
+                    "ParentId": case_id,
+                    "CommentBody": (
+                        "[NawazIdea] This case has been automatically closed "
+                        "based on customer confirmation. Thank you!"
+                    ),
+                    "IsPublished": True,
+                }
+            )
+            return True
+        except Exception as exc:
+            logger.exception("Failed to close Salesforce case %s: %s", case_id, exc)
+            return False
+
+    def create_knowledge_article(self, title: str, summary: str, body: str) -> bool:
+        if self.sf is None:
+            return False
+
+        import re
+        url_name = re.sub(r"[^a-zA-Z0-9]+", "-", title).strip("-")[:80]
+
+        try:
+            self.sf.Knowledge__kav.create(
+                {
+                    "Title": title,
+                    "UrlName": url_name,
+                    "Summary": summary,
+                    "Body__c": body,
+                    "IsVisibleInCsp": False,
+                    "IsVisibleInPkb": False,
+                    "IsVisibleInPrm": False,
+                }
+            )
+            return True
+        except Exception as exc:
+            logger.exception("Failed to create Salesforce knowledge article: %s", exc)
+            return False
+
+    def update_last_reply_checked(self, case_id: str, timestamp_iso: str) -> bool:
+        if self.sf is None:
+            return False
+
+        try:
+            self.sf.Case.update(
+                case_id,
+                {"CasePilot1_LastReplyChecked_c__c": timestamp_iso},
+            )
+            return True
+        except Exception as exc:
+            logger.exception(
+                "Failed to update last reply check time for case %s: %s",
+                case_id,
+                exc,
+            )
+            return False

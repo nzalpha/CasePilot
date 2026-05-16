@@ -285,3 +285,16 @@ When a new phase is completed, update this file:
 4. Update the Folder Structure section with new files
 5. Add any new environment variables to the table
 -->
+
+## Phase 6 — Customer Reply Handling & Self-Learning
+
+Phase 6 monitors `In Progress` Salesforce cases for customer replies. GPT classifies each reply as satisfied, stuck, or unclear. Satisfied cases are auto-closed and a draft knowledge article is created.
+
+Resolved Q&A is stripped of private customer information and ingested back into the knowledge base. This is the self-learning loop. Stuck cases get another retrieval pass, and unclear cases alert an engineer through Webex.
+
+New `.env` variables:
+
+```env
+REPLY_POLL_INTERVAL=60
+SELF_LEARNING_ENABLED=true
+```

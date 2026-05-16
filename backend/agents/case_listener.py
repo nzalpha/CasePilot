@@ -11,6 +11,7 @@ from backend.agents.agent_decision import (
 )
 from backend.config import settings
 from backend.integrations.salesforce_client import SalesforceClient
+from backend.agents.reply_handler import handle_case_reply
 
 
 logger = logging.getLogger(__name__)
@@ -90,3 +91,28 @@ async def poll_loop(retrieval_base_url: str) -> None:
 
 async def start_poll_loop(retrieval_base_url: str) -> asyncio.Task:
     return asyncio.create_task(poll_loop(retrieval_base_url))
+
+
+async def reply_poll_loop(retrieval_base_url: str) -> None:
+    sf_client = SalesforceClient()
+    if sf_client.sf is None:
+        logger.warning("Reply polling disabled because Salesforce is unavailable")
+        return
+    try:
+        while True:
+            cases = sf_client.get_inprogress_cases()
+            for case in cases:
+                replies = sf_client.get_new_customer_replies(
+                    case["case_id"],
+                    case.get("last_reply_checked"),
+                )
+                if replies:
+                    await handle_case_reply(case, replies, sf_client, retrieval_base_url)
+            await asyncio.sleep(settings.reply_poll_interval)
+    except asyncio.CancelledError:
+        logger.info("Reply polling stopped")
+        raise
+
+
+async def start_reply_poll_loop(retrieval_base_url: str) -> asyncio.Task:
+    return asyncio.create_task(reply_poll_loop(retrieval_base_url))

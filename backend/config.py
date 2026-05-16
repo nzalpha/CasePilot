@@ -29,6 +29,10 @@ class Settings:
     salesforce_poll_interval: int = int(os.getenv("SALESFORCE_POLL_INTERVAL", "10"))
     webex_bot_token: str = os.getenv("WEBEX_BOT_TOKEN", "")
     webex_room_id: str = os.getenv("WEBEX_ROOM_ID", "")
+    reply_poll_interval: int = int(os.getenv("REPLY_POLL_INTERVAL", "60"))
+    self_learning_enabled: bool = (
+        os.getenv("SELF_LEARNING_ENABLED", "true").lower() == "true"
+    )
 
 
 settings = Settings()

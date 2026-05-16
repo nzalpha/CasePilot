@@ -45,6 +45,10 @@ async def lifespan(app: FastAPI):
 
     retrieval_base_url = "http://127.0.0.1:8000"
     poll_task = await start_poll_loop(retrieval_base_url)
+    from backend.agents.case_listener import start_reply_poll_loop
+
+    reply_task = await start_reply_poll_loop(retrieval_base_url)
+    app.state.reply_task = reply_task
     app.state.graph_writer = graph_writer
     try:
         yield
@@ -52,6 +56,11 @@ async def lifespan(app: FastAPI):
         poll_task.cancel()
         try:
             await poll_task
+        except asyncio.CancelledError:
+            pass
+        reply_task.cancel()
+        try:
+            await reply_task
         except asyncio.CancelledError:
             pass
         graph_writer.close()
