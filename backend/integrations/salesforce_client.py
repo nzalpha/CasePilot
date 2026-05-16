@@ -285,6 +285,31 @@ class SalesforceClient:
             logger.exception("Failed to create Salesforce knowledge article: %s", exc)
             return False
 
+    def get_case_history(self, case_id: str) -> list[dict]:
+        """Return all comments on a case with body and who posted it (AI or customer)."""
+        if self.sf is None:
+            return []
+
+        escaped_case_id = case_id.replace("'", "\\'")
+        query = f"""
+        SELECT CommentBody, CreatedDate, IsPublished
+        FROM CaseComment
+        WHERE ParentId = '{escaped_case_id}'
+        ORDER BY CreatedDate ASC
+        """
+        try:
+            result = self.sf.query(query)
+            records = result.get("records", [])
+            history = []
+            for record in records:
+                body = record.get("CommentBody", "") or ""
+                role = "ai" if body.startswith("[NawazIdea") else "customer"
+                history.append({"role": role, "body": body})
+            return history
+        except Exception as exc:
+            logger.exception("Failed to fetch case history for %s: %s", case_id, exc)
+            return []
+
     def update_last_reply_checked(self, case_id: str, timestamp_iso: str) -> bool:
         if self.sf is None:
             return False

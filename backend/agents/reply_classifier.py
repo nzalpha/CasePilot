@@ -8,12 +8,21 @@ from backend.ingestion.embedder import retry_async
 
 VALID_INTENTS = {"SATISFIED", "STUCK", "UNCLEAR"}
 
-SYSTEM_PROMPT = """You are classifying customer support replies. Respond with exactly one word:
-SATISFIED if the customer confirms the issue is resolved, says thank you,
-or asks to close the case.
-STUCK if the customer says the solution did not work, reports a new error,
-or asks a follow-up question.
-UNCLEAR if you cannot determine intent from the message.
+SYSTEM_PROMPT = """You are classifying customer support replies. Respond with exactly one word.
+
+SATISFIED — customer confirms the issue is resolved, says thank you, or asks to close the case.
+Examples: "thank you", "that worked", "issue is resolved", "please close this ticket"
+
+STUCK — customer says the solution did not work or reports a new specific technical error.
+Examples: "still getting the error", "it didn't work", "now I see a different error"
+Important: Do NOT classify as STUCK if the customer is asking for a call, a meeting,
+or human assistance. Those are UNCLEAR.
+
+UNCLEAR — you cannot determine intent, OR the customer is asking for a call, a chat,
+a meeting, or to speak to a human.
+Examples: "lets get on a webex call", "can we schedule a call", "I need to speak to someone",
+"can you call me", "let's hop on a call", "can we meet"
+
 Respond with only the word: SATISFIED, STUCK, or UNCLEAR."""
 
 

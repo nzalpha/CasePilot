@@ -23,6 +23,46 @@ PII_PROMPT = (
     "details. Return only the rewritten Q&A, no explanation."
 )
 
+KB_ARTICLE_PROMPT = (
+    "You are a technical knowledge base writer. "
+    "Below is the full history of a resolved support case — including the original question, "
+    "any AI-generated answers, and the customer's confirmation that it was resolved. "
+    "Write a clean, professional knowledge base article that explains the issue and the resolution. "
+    "Rules:\n"
+    "- Remove all personal information (names, emails, company names)\n"
+    "- Focus on the technical question and the answer\n"
+    "- Structure it clearly: Issue, Resolution, Key Points\n"
+    "- Do not mention that the answer came from an AI\n"
+    "- Do not include the customer satisfaction message\n"
+    "- Write it so a support engineer can use it to answer a similar question in the future\n"
+    "Return only the article body text, no title."
+)
+
+
+async def generate_kb_article_body(
+    case_history: list[dict],
+    client: AsyncOpenAI | None = None,
+) -> str:
+    openai_client = client or AsyncOpenAI(api_key=settings.openai_api_key)
+
+    history_text = "\n\n".join(
+        f"[{'AI Response' if h['role'] == 'ai' else 'Customer'}]:\n{h['body']}"
+        for h in case_history
+    )
+
+    async def call_openai() -> str:
+        response = await openai_client.chat.completions.create(
+            model=settings.openai_llm_model,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": KB_ARTICLE_PROMPT},
+                {"role": "user", "content": history_text},
+            ],
+        )
+        return response.choices[0].message.content or history_text
+
+    return await retry_async(call_openai, "OpenAI KB article generation")
+
 
 async def strip_pii_from_qa(
     question: str,

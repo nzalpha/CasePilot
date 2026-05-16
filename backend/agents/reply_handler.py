@@ -6,7 +6,7 @@ from datetime import datetime
 import httpx
 
 from backend.agents.reply_classifier import classify_reply
-from backend.agents.self_learner import ingest_resolved_qa
+from backend.agents.self_learner import generate_kb_article_body, ingest_resolved_qa
 from backend.config import settings
 from backend.integrations.salesforce_client import SalesforceClient
 from backend.integrations.webex_client import WebexClient
@@ -76,16 +76,14 @@ async def handle_case_reply(
             case_store.update_status(case["case_id"], "resolved")
             question = case["subject"] + " " + case.get("description", "")
             if settings.self_learning_enabled:
-                await ingest_resolved_qa(question, combined_reply, case["case_number"])
+                # Fetch full case history so GPT can write a proper KB article
+                case_history = sf_client.get_case_history(case["case_id"])
+                kb_body = await generate_kb_article_body(case_history)
+                await ingest_resolved_qa(question, kb_body, case["case_number"])
                 sf_client.create_knowledge_article(
                     title=case["subject"],
-                    summary=(
-                        f"Resolved case {case['case_number']} — auto-generated"
-                    ),
-                    body=(
-                        f"Question:\n{question}\n\n"
-                        f"Resolution confirmed by customer:\n{combined_reply}"
-                    ),
+                    summary=f"Resolved case {case['case_number']} — auto-generated",
+                    body=kb_body,
                 )
             await send_webex_message(
                 (
@@ -96,40 +94,27 @@ async def handle_case_reply(
             )
 
         elif intent == "STUCK":
-            retrieval_response = await call_retriever(
-                retrieval_base_url,
+            # Customer says the solution did not work — notify engineer immediately.
+            # Do NOT auto-post another AI answer on a case already in progress.
+            sf_client.flag_for_human_review(
                 case["case_id"],
+                0.0,
                 combined_reply,
             )
-            answer = retrieval_response["data"]["message"]
-            confidence = retrieval_response["data"]["info"]["confidence"]
-            sources = retrieval_response["data"]["info"]["sources"]
-            if confidence >= settings.confidence_threshold:
-                sf_client.post_answer_to_case(
-                    case["case_id"],
-                    answer,
-                    sources,
-                    confidence,
-                )
-            else:
-                sf_client.flag_for_human_review(
-                    case["case_id"],
-                    confidence,
-                    combined_reply,
-                )
-                await send_webex_message(
-                    (
-                        f"⚠️ Case {case['case_number']} customer replied but AI "
-                        "still not confident.\nPlease review manually."
-                    )
-                )
+            await send_webex_message(
+                f"⚠️ **Case {case['case_number']} — Customer Still Stuck**\n\n"
+                f"**Subject:** {case['subject']}\n\n"
+                f"**Customer reply:** {combined_reply}\n\n"
+                "The previous answer did not resolve the issue. Please review and respond manually."
+            )
 
         else:
+            # UNCLEAR — customer may be asking for a call, meeting, or human help
             await send_webex_message(
-                (
-                    f"❓ Case {case['case_number']} has a new customer reply that "
-                    "needs manual review.\nIntent could not be determined."
-                )
+                f"❓ **Case {case['case_number']} — Human Assistance Requested**\n\n"
+                f"**Subject:** {case['subject']}\n\n"
+                f"**Customer reply:** {combined_reply}\n\n"
+                "Please review and respond — customer may be requesting a call or direct help."
             )
     except Exception as exc:
         logger.exception("Failed to handle reply for case %s: %s", case.get("case_id"), exc)
