@@ -261,15 +261,16 @@ class SalesforceClient:
             logger.exception("Failed to close Salesforce case %s: %s", case_id, exc)
             return False
 
-    def create_knowledge_article(self, title: str, summary: str, body: str) -> bool:
+    def create_knowledge_article(self, title: str, summary: str, body: str) -> str | None:
+        """Create a draft Knowledge Article. Returns the article ID on success, None on failure."""
         if self.sf is None:
-            return False
+            return None
 
         import re
         url_name = re.sub(r"[^a-zA-Z0-9]+", "-", title).strip("-")[:80]
 
         try:
-            self.sf.Knowledge__kav.create(
+            result = self.sf.Knowledge__kav.create(
                 {
                     "Title": title,
                     "UrlName": url_name,
@@ -280,10 +281,10 @@ class SalesforceClient:
                     "IsVisibleInPrm": False,
                 }
             )
-            return True
+            return result.get("id")
         except Exception as exc:
             logger.exception("Failed to create Salesforce knowledge article: %s", exc)
-            return False
+            return None
 
     def get_case_history(self, case_id: str) -> list[dict]:
         """Return all comments on a case with body and who posted it (AI or customer)."""

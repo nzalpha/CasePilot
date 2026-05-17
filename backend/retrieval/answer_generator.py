@@ -15,18 +15,21 @@ FALLBACK_ANSWER = (
 )
 
 PROMPT_TEMPLATE = """You are a technical support assistant. Answer the question
-using the context provided below.
+using ONLY the information explicitly stated in the context below.
 
 Rules:
-- Use the provided context as your primary source
-- If the context contains relevant information, use it to write
-  a clear and helpful answer even if it is not a perfect match
-- Only say "I don't have enough information in the knowledge base
-  to answer this question." if the context contains absolutely
-  nothing related to the question
-- Be concise and structured
-- Include specific steps or commands where relevant
-- Do not make up information not present in the context
+- Read the context carefully and check if it contains a real answer to the question
+- If the context explicitly covers the question, write a clear structured answer
+  using only what is stated in the context
+- CRITICAL: Do NOT use your general training knowledge to fill gaps.
+  If the answer would require knowledge not present in the context, use the fallback.
+- Say exactly "I don't have enough information in the knowledge base to answer
+  this question." in these cases:
+    * The context is about a different specific topic (different error code,
+      different product, different feature)
+    * The context only mentions the topic vaguely but does not actually explain it
+    * Answering correctly would require adding facts not written in the context
+- Be concise and structured. Use bullet points or steps where helpful.
 
 Context:
 {{context}}
@@ -94,6 +97,10 @@ async def generate_answer(
         return response.choices[0].message.content or FALLBACK_ANSWER
 
     answer = await retry_async(call_openai, "OpenAI answer generation")
+    # If GPT decided context was not relevant, force confidence to 0
+    # so it always gets flagged for human review
+    if answer.strip() == FALLBACK_ANSWER.strip():
+        confidence = 0.0
     return {
         "answer": answer,
         "confidence": confidence,

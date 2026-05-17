@@ -75,22 +75,31 @@ async def handle_case_reply(
             sf_client.close_case(case["case_id"])
             case_store.update_status(case["case_id"], "resolved")
             question = case["subject"] + " " + case.get("description", "")
+            kb_link = None
             if settings.self_learning_enabled:
                 # Fetch full case history so GPT can write a proper KB article
                 case_history = sf_client.get_case_history(case["case_id"])
                 kb_body = await generate_kb_article_body(case_history)
                 await ingest_resolved_qa(question, kb_body, case["case_number"])
-                sf_client.create_knowledge_article(
+                article_id = sf_client.create_knowledge_article(
                     title=case["subject"],
                     summary=f"Resolved case {case['case_number']} — auto-generated",
                     body=kb_body,
                 )
+                if article_id:
+                    kb_link = (
+                        f"{settings.salesforce_instance_url.rstrip('/')}"
+                        f"/lightning/r/Knowledge__kav/{article_id}/view"
+                    )
+
+            kb_line = (
+                f"\n\n📄 **Knowledge Article:** [Review Draft]({kb_link})"
+                if kb_link else ""
+            )
             await send_webex_message(
-                (
-                    f"✅ Case {case['case_number']} has been auto-closed. "
-                    "Customer confirmed resolution.\n"
-                    "A draft knowledge article has been created for review."
-                )
+                f"✅ **Case {case['case_number']} — Auto-Closed**\n\n"
+                f"**Subject:** {case['subject']}\n\n"
+                f"Customer confirmed the issue is resolved.{kb_line}"
             )
 
         elif intent == "STUCK":
