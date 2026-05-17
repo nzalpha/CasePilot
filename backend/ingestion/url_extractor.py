@@ -75,7 +75,12 @@ async def extract_url_pages(url: str) -> list[ExtractedUrlPage]:
     return [{"page_number": 0, "text": text}]
 
 
-async def discover_links(url: str, url_pattern: str | None = None) -> list[str]:
+async def discover_links(
+    url: str,
+    url_pattern: str | None = None,
+    max_pages: int = 50,
+) -> list[str]:
     html = await fetch_html(url)
     links = extract_links_from_html(html, url)
-    return filter_links_by_pattern(links, url_pattern)
+    filtered = filter_links_by_pattern(links, url_pattern)
+    return filtered[:max_pages]

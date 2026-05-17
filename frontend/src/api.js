@@ -15,11 +15,12 @@ async function parseResponse(response) {
   return payload;
 }
 
-export async function ingestUrl({ url, crawlMode, urlPattern }) {
+export async function ingestUrl({ url, crawlMode, urlPattern, maxPages }) {
   const payload = {
     url,
     crawl_mode: crawlMode,
-    ...(crawlMode === "crawl" && urlPattern ? { url_pattern: urlPattern } : {})
+    ...(crawlMode === "crawl" && urlPattern ? { url_pattern: urlPattern } : {}),
+    ...(crawlMode === "crawl" && maxPages ? { max_pages: maxPages } : {})
   };
 
   const response = await fetch("/ingest-url", {

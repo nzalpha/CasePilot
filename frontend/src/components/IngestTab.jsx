@@ -7,6 +7,7 @@ export default function IngestTab() {
   const [url, setUrl] = useState("");
   const [crawlMode, setCrawlMode] = useState("single");
   const [urlPattern, setUrlPattern] = useState("");
+  const [maxPages, setMaxPages] = useState("");
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfValidation, setPdfValidation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,12 +26,25 @@ export default function IngestTab() {
       return;
     }
 
+    const parsedMaxPages = Number.parseInt(maxPages, 10);
+    if (
+      crawlMode === "crawl" &&
+      (!maxPages || Number.isNaN(parsedMaxPages) || parsedMaxPages < 1)
+    ) {
+      setNotice({
+        type: "error",
+        text: "Max pages is required for crawl mode. Enter a number between 1 and 500."
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await ingestUrl({
         url: url.trim(),
         crawlMode,
-        urlPattern: urlPattern.trim()
+        urlPattern: urlPattern.trim(),
+        maxPages: crawlMode === "crawl" ? parsedMaxPages : undefined
       });
 
       if (response.status === "duplicate") {
@@ -155,15 +169,35 @@ export default function IngestTab() {
           </fieldset>
 
           {crawlMode === "crawl" && (
-            <label className="field">
-              <span>URL pattern filter</span>
-              <input
-                type="text"
-                value={urlPattern}
-                onChange={(event) => setUrlPattern(event.target.value)}
-                placeholder="e.g. /kb/networking/*"
-              />
-            </label>
+            <>
+              <label className="field">
+                <span>URL pattern filter</span>
+                <input
+                  type="text"
+                  value={urlPattern}
+                  onChange={(event) => setUrlPattern(event.target.value)}
+                  placeholder="e.g. /kb/networking/*"
+                />
+              </label>
+
+              <label className="field">
+                <span>
+                  Max pages to crawl <span style={{ color: "red" }}>*</span>
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={maxPages}
+                  onChange={(event) => setMaxPages(event.target.value)}
+                  placeholder="e.g. 20"
+                  required
+                />
+                <small style={{ color: "#888" }}>
+                  Limit how many linked pages are ingested (1-500)
+                </small>
+              </label>
+            </>
           )}
 
           {notice && <p className={`notice ${notice.type}`}>{notice.text}</p>}

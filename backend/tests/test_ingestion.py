@@ -6,6 +6,7 @@ import fitz
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -16,7 +17,9 @@ from backend.ingestion.chunker import approximate_token_count, chunk_pages
 from backend.ingestion.entity_extractor import OpenAIEntityExtractor
 from backend.ingestion.graph_writer import GraphWriter
 from backend.ingestion.pdf_extractor import extract_pdf_pages
-from backend.ingestion.url_extractor import filter_links_by_pattern
+from backend.ingestion import url_extractor
+from backend.ingestion.url_extractor import discover_links, filter_links_by_pattern
+from backend.models.schemas import IngestUrlRequest
 from backend.routers.ingestion import router
 
 
@@ -119,6 +122,25 @@ class FakeGraphWriter:
         return self.delete_result
 
 
+class RecordingGraphWriter:
+    def __init__(self):
+        self.merged_sources = []
+
+    def get_document_by_source(self, source):
+        return None
+
+    def merge_document(
+        self,
+        document_id,
+        title,
+        source,
+        source_type,
+        status,
+        uploaded_at,
+    ):
+        self.merged_sources.append(source)
+
+
 def test_duplicate_url_detection():
     app = FastAPI()
     app.state.graph_writer = FakeGraphWriter()
@@ -135,6 +157,81 @@ def test_duplicate_url_detection():
     assert response.json()["document_ids"] == ["url-existing"]
 
 
+def test_crawl_url_endpoint_caps_queued_urls(monkeypatch):
+    calls = []
+
+    async def fake_discover_links(url, url_pattern, max_pages):
+        calls.append(
+            {
+                "url": url,
+                "url_pattern": url_pattern,
+                "max_pages": max_pages,
+            }
+        )
+        return [
+            "https://example.com/docs/one",
+            "https://example.com/docs/two",
+            "https://example.com/docs/three",
+        ]
+
+    async def fake_ingest_url_background(graph_writer, url, document):
+        return None
+
+    monkeypatch.setattr(
+        "backend.routers.ingestion.discover_links",
+        fake_discover_links,
+    )
+    monkeypatch.setattr(
+        "backend.routers.ingestion.ingest_url_background",
+        fake_ingest_url_background,
+    )
+
+    app = FastAPI()
+    graph_writer = RecordingGraphWriter()
+    app.state.graph_writer = graph_writer
+    app.include_router(router)
+    client = TestClient(app)
+
+    response = client.post(
+        "/ingest-url",
+        json={
+            "url": "https://example.com/docs",
+            "crawl_mode": "crawl",
+            "url_pattern": "/docs/",
+            "max_pages": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    assert calls == [
+        {
+            "url": "https://example.com/docs",
+            "url_pattern": "/docs/",
+            "max_pages": 2,
+        }
+    ]
+    assert response.json()["status"] == "processing"
+    assert len(response.json()["document_ids"]) == 2
+    assert response.json()["message"] == (
+        "URL ingestion has started for 2 page(s) (limit: 2)"
+    )
+    assert graph_writer.merged_sources == [
+        "https://example.com/docs/one",
+        "https://example.com/docs/two",
+    ]
+
+
+def test_crawl_request_requires_max_pages():
+    with pytest.raises(ValidationError, match="max_pages is required"):
+        IngestUrlRequest(url="https://example.com", crawl_mode="crawl")
+
+
+def test_single_page_request_does_not_require_max_pages():
+    payload = IngestUrlRequest(url="https://example.com", crawl_mode="single")
+
+    assert payload.max_pages is None
+
+
 def test_url_pattern_filter():
     links = [
         "https://example.com/docs/router-x200",
@@ -147,6 +244,25 @@ def test_url_pattern_filter():
     assert filtered == [
         "https://example.com/docs/router-x200",
         "https://example.com/docs/switch-a10",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_discover_links_enforces_max_pages(monkeypatch):
+    async def fake_fetch_html(url):
+        return """
+        <a href="/docs/one">One</a>
+        <a href="/docs/two">Two</a>
+        <a href="/docs/three">Three</a>
+        """
+
+    monkeypatch.setattr(url_extractor, "fetch_html", fake_fetch_html)
+
+    links = await discover_links("https://example.com", "/docs/", max_pages=2)
+
+    assert links == [
+        "https://example.com/docs/one",
+        "https://example.com/docs/two",
     ]
 
 

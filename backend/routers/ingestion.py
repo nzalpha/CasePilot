@@ -208,12 +208,17 @@ async def ingest_url(
             )
         urls_to_ingest = [payload.url]
     else:
+        max_pages = payload.max_pages or 50
         try:
-            discovered_urls = await discover_links(payload.url, payload.url_pattern)
+            discovered_urls = await discover_links(
+                payload.url,
+                payload.url_pattern,
+                max_pages=max_pages,
+            )
         except Exception as exc:
             logger.exception("Failed to discover links from %s: %s", payload.url, exc)
             raise HTTPException(status_code=400, detail="Unable to crawl the provided URL") from exc
-        urls_to_ingest = discovered_urls
+        urls_to_ingest = discovered_urls[:max_pages]
 
     document_ids: list[str] = []
     duplicate_ids: list[str] = []
@@ -251,7 +256,14 @@ async def ingest_url(
     return UrlIngestionResponse(
         document_ids=document_ids,
         status="processing",
-        message=f"URL ingestion has started for {len(document_ids)} document(s)",
+        message=(
+            f"URL ingestion has started for {len(document_ids)} page(s)"
+            + (
+                f" (limit: {payload.max_pages})"
+                if payload.crawl_mode == "crawl"
+                else ""
+            )
+        ),
     )
 
 

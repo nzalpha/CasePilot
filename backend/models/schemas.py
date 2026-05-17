@@ -1,12 +1,19 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class IngestUrlRequest(BaseModel):
     url: str
     crawl_mode: Literal["single", "crawl"] = "single"
     url_pattern: Optional[str] = None
+    max_pages: Optional[int] = Field(default=None, ge=1, le=500)
+
+    @model_validator(mode="after")
+    def max_pages_required_for_crawl(self) -> "IngestUrlRequest":
+        if self.crawl_mode == "crawl" and self.max_pages is None:
+            raise ValueError("max_pages is required when crawl_mode is 'crawl'")
+        return self
 
 
 class DocumentResponse(BaseModel):
