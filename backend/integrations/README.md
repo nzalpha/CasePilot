@@ -101,3 +101,30 @@ Please review, edit the AI draft in Salesforce if present, and respond.
 ```
 
 If Webex is not configured, the system keeps running. It logs a warning and does not send notifications.
+
+## Phase 6 — Salesforce Reply Handling & Knowledge Articles
+
+Phase 6 added four new methods to `salesforce_client.py` and one new integration:
+
+**New methods in salesforce_client.py:**
+
+- `get_inprogress_cases` — fetches all cases with Status = "In Progress" and `CasePilot1_Processed__c = true`. These are cases the system already handled and is now monitoring for customer replies.
+- `get_new_customer_replies` — fetches case comments that were not posted by NawazIdea (filters out any comment starting with `[NawazIdea`). Returns only comments posted after the last check timestamp.
+- `get_case_history` — fetches all comments on a case and labels each one as "ai" or "customer". Used to build the full context for GPT when writing a knowledge article.
+- `close_case` — sets case Status to "Closed" and posts a public closing comment confirming auto-closure.
+- `create_knowledge_article` — creates a draft Knowledge Article in Salesforce Knowledge (`Knowledge__kav`) with Title, UrlName, Summary, and Body. The article is internal only (not visible to customers) until an engineer publishes it.
+- `update_last_reply_checked` — updates `CasePilot1_LastReplyChecked_c__c` on the case to the current timestamp so the next poll only reads new comments.
+
+**Custom Salesforce fields required:**
+
+| Field | Object | Type | Purpose |
+|-------|--------|------|---------|
+| `CasePilot1_Processed__c` | Case | Checkbox | Marks cases already handled by NawazIdea |
+| `CasePilot1_LastReplyChecked_c__c` | Case | DateTime | Tracks when replies were last checked |
+| `Body__c` | Knowledge | Rich Text Area | Stores the article body content |
+
+**New `.env` variables:**
+```
+REPLY_POLL_INTERVAL=60
+SELF_LEARNING_ENABLED=true
+```
