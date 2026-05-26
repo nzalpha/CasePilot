@@ -23,21 +23,32 @@ logger = logging.getLogger(__name__)
 
 def build_answer_comment(answer: str, sources: list[str], confidence: float) -> str:
     source_lines = "\n".join(sources)
-    return f"""[NawazIdea - Automated Response]
-Confidence: {confidence:.0%}
+    return f"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 CasePilot Agent — Automated Response
+Confidence: {confidence:.0%} | Auto-generated · Not manually reviewed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {answer}
 
 Sources:
 {source_lines}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 
 def build_flag_comment(confidence: float, question: str) -> str:
-    return f"""[NawazIdea - Human Review Required]
-Confidence score {confidence:.0%} is below threshold.
+    return f"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 CasePilot Agent — Human Review Required
+Confidence: {confidence:.0%} | Below threshold · SME action needed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 Question: {question}
+
+The AI was not confident enough to answer this case automatically.
 Please review and respond manually.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 
@@ -184,8 +195,8 @@ class SalesforceClient:
         FROM Case
         WHERE Status = 'In Progress'
         AND CasePilot1_Processed__c = true
-        ORDER BY LastModifiedDate ASC
-        LIMIT 20
+        ORDER BY LastModifiedDate DESC
+        LIMIT 100
         """
         try:
             result = self.sf.query(query)
@@ -228,7 +239,7 @@ class SalesforceClient:
             for record in records:
                 comment_body = record.get("CommentBody", "") or ""
                 # Skip comments posted by the AI system
-                if comment_body.startswith("[NawazIdea"):
+                if "🤖 CasePilot Agent" in comment_body:
                     continue
                 created_at = record.get("CreatedDate")
                 if since_iso and created_at and created_at <= since_iso:
@@ -250,8 +261,11 @@ class SalesforceClient:
                 {
                     "ParentId": case_id,
                     "CommentBody": (
-                        "[NawazIdea] This case has been automatically closed "
-                        "based on customer confirmation. Thank you!"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "🤖 CasePilot Agent — Case Auto-Closed\n"
+                        "Customer confirmed the issue is resolved.\n"
+                        "This case was automatically closed by CasePilot.\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                     ),
                     "IsPublished": True,
                 }
@@ -304,7 +318,7 @@ class SalesforceClient:
             history = []
             for record in records:
                 body = record.get("CommentBody", "") or ""
-                role = "ai" if body.startswith("[NawazIdea") else "customer"
+                role = "ai" if "🤖 CasePilot Agent" in body else "customer"
                 history.append({"role": role, "body": body})
             return history
         except Exception as exc:
