@@ -1,5 +1,7 @@
 # CasePilot
 
+## Demo : <video src="/Users/nawaz/Desktop/Demo-CasePilot.mov" width="320" height="240" controls></video>
+
 ## PROJECT OVERVIEW
 
 CasePilot is a FastAPI and React application that ingests support knowledge from PDFs and web pages into Neo4j. It uses OpenAI embeddings, entity extraction, graph relationships, fulltext search, and answer generation to find responses for Salesforce cases. A background Salesforce agent polls new cases, routes high-confidence answers back to Salesforce, and flags lower-confidence cases for human review. When customers confirm resolution, the app can generate a sanitized knowledge article and feed the resolved Q&A back into the knowledge graph.
